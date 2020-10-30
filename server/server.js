@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
 const express = require('express');
+const db = require('./db/query.js');
 
 const app = express();
 const PORT = 3001;
@@ -9,37 +10,77 @@ app.use(express.json());
 
 // GET /products/list/
 app.get('/products/lists/', (req, res) => {
-  res.staus(200)
+  res.status(200)
     .send('Getting product list');
 });
 // GET /products/:product_id
 app.get('/products/:product_id', (req, res) => {
   const id = req.params.product_id;
-  res.status(200)
-    .send(`Getting product by id:${id}`);
+
+  let product = {
+    id: id,
+    name: '',
+    slogan: '',
+    description: '',
+    category: '',
+    default_price: '',
+    features: [],
+  };
+
+  db.getProductById(id, (error, data) => {
+    if (error) {
+      res.send(error);
+    } else {
+      product.name = data.rows[0].name;
+      product.slogan = data.rows[0].slogan;
+      product.description = data.rows[0].description;
+      product.category = data.rows[0].category;
+      product.default_price = data.rows[0].default_price;
+      db.getFeaturesById(id, (error, data) => {
+        if (error) {
+          res.send(error);
+        } else {
+          const feats = data.rows;
+          for (let i = 0; i < feats.length; i++) {
+            const pair = {
+              feature: feats[i].feature,
+              value: feats[i].value,
+            };
+            product.features.push(pair);
+          }
+          res.send(product);
+        }
+      });
+    }
+  });
 });
 // GET /products/:product_id/styles
 app.get('/products/:product_id/styles', (req, res) => {
   const id = req.params.product_id;
-  res.status(200)
-    .send(`Getting product styles by id:${id}`);
-});
-// GET /reviews/:product_id/meta
-app.get('/reviews/:product_id/meta', (req, res) => {
-  const id = req.params.product_id;
-  res.status(200)
-    .send(`Getting review meta data by id:${id}`);
-});
-// GET /cart/:session_id
-app.get('/cart/:session_id', (req, res) => {
-  const sid = req.params.session_id;
-  res.status(200)
-    .send(`Getting cart data by session id:${sid}`);
-});
-// POST /cart/
-app.post('/cart/', (req, res) => {
-  res.status(200)
-    .send('Adding item to cart');
+  let styles = {
+    product_id: id,
+    results: [],
+  };
+
+  db.getStylesById(id, (error, data) => {
+    if (error) {
+      res.send(error);
+    } else {
+      const rows = data.rows;
+      for (let i = 0; i < rows.length; i++) {
+        let style = {
+          style_id: rows[i].id,
+          name: rows[i].name,
+          original_price: rows[i].original_price,
+          sale_price: rows[i].sale_price,
+          'defalut?': rows[i]['default?'],
+          photos: [],
+        };
+        styles.results.push(style);
+      }
+      res.send(styles);
+    }
+  });
 });
 
 app.listen(PORT, () => {
